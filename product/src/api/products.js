@@ -1,11 +1,12 @@
 const ProductService = require("../services/product-service");
 const UserAuth = require("./middlewares/auth");
-const { PublishCustomerEvent, PublishShoppingEvent } = require("../utils");
+const { SHOPPING_BINDING_KEY, CUSTOMER_BINDING_KEY } = require("../config");
+const { PublishMessage } = require("../utils");
 
-module.exports = (app) => {
+module.exports = (app, channel) => {
   const service = new ProductService();
 
-  app.post("/create", async (req, res, next) => {
+  app.post("/products/create", async (req, res, next) => {
     try {
       const { name, desc, type, unit, price, available, suplier, banner } =
         req.body;
@@ -26,7 +27,7 @@ module.exports = (app) => {
     }
   });
 
-  app.get("/category/:type", async (req, res, next) => {
+  app.get("/products/category/:type", async (req, res, next) => {
     const type = req.params.type;
 
     try {
@@ -37,7 +38,7 @@ module.exports = (app) => {
     }
   });
 
-  app.get("/:id", async (req, res, next) => {
+  app.get("/products/:id", async (req, res, next) => {
     const productId = req.params.id;
 
     try {
@@ -48,7 +49,7 @@ module.exports = (app) => {
     }
   });
 
-  app.post("/ids", async (req, res, next) => {
+  app.post("/products/ids", async (req, res, next) => {
     try {
       const { ids } = req.body;
       const products = await service.GetSelectedProducts(ids);
@@ -58,7 +59,7 @@ module.exports = (app) => {
     }
   });
 
-  app.put("/wishlist", UserAuth, async (req, res, next) => {
+  app.put("/products/wishlist", UserAuth, async (req, res, next) => {
     const { _id } = req.user;
 
     try {
@@ -67,12 +68,12 @@ module.exports = (app) => {
         { productId: req.body._id },
         "ADD_TO_WISHLIST"
       );
-      PublishCustomerEvent(data);
+      PublishMessage(channel, CUSTOMER_BINDING_KEY, JSON.stringify(data));
       return res.status(200).json(data.data.product);
     } catch (err) {}
   });
 
-  app.delete("/wishlist/:id", UserAuth, async (req, res, next) => {
+  app.delete("/products/wishlist/:id", UserAuth, async (req, res, next) => {
     const { _id } = req.user;
     const productId = req.params.id;
 
@@ -82,14 +83,14 @@ module.exports = (app) => {
         { productId },
         "REMOVE_FROM_WISHLIST"
       );
-      PublishCustomerEvent(data);
+      PublishMessage(channel, CUSTOMER_BINDING_KEY, JSON.stringify(data));
       return res.status(200).json(data.data.product);
     } catch (err) {
       next(err);
     }
   });
 
-  app.put("/cart", UserAuth, async (req, res, next) => {
+  app.put("/products/cart", UserAuth, async (req, res, next) => {
     const { _id } = req.user;
 
     try {
@@ -98,8 +99,8 @@ module.exports = (app) => {
         { productId: req.body._id, qty: req.body.qty },
         "ADD_TO_CART"
       );
-      PublishCustomerEvent(data);
-      PublishShoppingEvent(data);
+      PublishMessage(channel, CUSTOMER_BINDING_KEY, JSON.stringify(data));
+      PublishMessage(channel, SHOPPING_BINDING_KEY, JSON.stringify(data));
 
       const response = {
         product: data.data.product,
@@ -111,7 +112,7 @@ module.exports = (app) => {
     }
   });
 
-  app.delete("/cart/:id", UserAuth, async (req, res, next) => {
+  app.delete("/products/cart/:id", UserAuth, async (req, res, next) => {
     const { _id } = req.user;
     const productId = req.params.id;
 
@@ -121,8 +122,8 @@ module.exports = (app) => {
         { productId },
         "REMOVE_FROM_CART"
       );
-      PublishCustomerEvent(data);
-      PublishShoppingEvent(data);
+      PublishMessage(channel, CUSTOMER_BINDING_KEY, JSON.stringify(data));
+      PublishMessage(channel, SHOPPING_BINDING_KEY, JSON.stringify(data));
 
       const response = {
         product: data.data.product,
@@ -135,7 +136,7 @@ module.exports = (app) => {
   });
 
   //get Top products and category
-  app.get("/", async (req, res, next) => {
+  app.get("/products/", async (req, res, next) => {
     //check validation
     try {
       const { data } = await service.GetProducts();
